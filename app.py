@@ -17,11 +17,20 @@ def haversine(lat1, lon1, lat2, lon2):
 # Fetch aircraft from ADSB Exchange
 def fetch_aircraft(lat, lon, distance_km=10):
     url = f"https://public-api.adsbexchange.com/VirtualRadar/AircraftList.json?lat={lat}&lng={lon}&fDstL={distance_km}"
-    response = requests.get(url)
-    if response.status_code != 200:
+    headers = {'User-Agent': 'DroneAlertApp/1.0'}  # some APIs require this
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()  # raise HTTPError for bad responses
+        data = response.json()
+        return data.get('acList', [])
+    except requests.exceptions.JSONDecodeError:
+        print(" Received invalid JSON from ADSB Exchange")
         return []
-    data = response.json()
-    return data.get('acList', [])
+    except requests.exceptions.RequestException as e:
+        print(f" Request failed: {e}")
+        return []
+
+
 
 @app.route('/')
 def index():
