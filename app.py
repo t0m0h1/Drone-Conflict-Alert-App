@@ -12,16 +12,33 @@ def haversine(lat1, lon1, lat2, lon2):
     c = 2 * asin(sqrt(a))
     return 6371 * c  # km
 
+
 def fetch_aircraft(lat, lon, radius_km=10):
+    """
+    Fetch aircraft near a location using ADSB.lol API.
+    Returns a list of aircraft dictionaries.
+    """
     url = f"https://api.adsb.lol/v2/lat/{lat}/lon/{lon}/dist/{radius_km}"
     try:
         response = requests.get(url, timeout=5)
         response.raise_for_status()
         data = response.json()
-        return data.get('aircraft', [])  # adjust based on actual JSON structure
-    except Exception as e:
-        print(f" ADSB.lol API error: {e}")
+        print("Raw API response:", data)  # Debug
+
+        # Correct key for ADSB.lol
+        aircraft_list = data.get('ac', [])
+
+        print(f"Number of aircraft detected: {len(aircraft_list)}")
+        return aircraft_list
+
+    except requests.exceptions.RequestException as e:
+        print(f"ADSB.lol API request error: {e}")
         return []
+    except ValueError as e:
+        print(f"Error parsing JSON: {e}")
+        return []
+
+
 
 @app.route('/')
 def index():

@@ -3,13 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <title>Drone Aircraft Alert</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        input, button { padding: 5px; margin: 5px; }
+        .alert { margin: 5px 0; padding: 8px; border-radius: 5px; }
+        .normal { background-color: #d4edda; color: #155724; }
+        .alert-status { background-color: #f8d7da; color: #721c24; }
+    </style>
 </head>
 <body>
-    <h1>Drone Operator Aircraft Alert</h1>
-    <button id="checkBtn">Check for Nearby Aircraft</button>
-    <ul id="alerts"></ul>
+    <h1>Drone Aircraft Alert Checker</h1>
 
-    <script src="/static/script.js"></script>
+    <label>Radius (km): <input type="number" id="radius" value="5"></label>
+    <label>Altitude Limit (ft): <input type="number" id="alt_limit" value="5000"></label>
+    <button id="checkBtn">Check Aircraft</button>
+
+    <h2>Results:</h2>
+    <div id="alerts"></div>
+
+    <script>
+        document.getElementById('checkBtn').addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                alert("Geolocation is not supported by your browser.");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(position => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const radius = parseFloat(document.getElementById('radius').value);
+                const alt_limit = parseFloat(document.getElementById('alt_limit').value);
+
+                fetch('/check_aircraft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat, lon, radius, alt_limit })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const alertsDiv = document.getElementById('alerts');
+                    alertsDiv.innerHTML = '';
+
+                    if (!data.alerts || data.alerts.length === 0) {
+                        alertsDiv.textContent = 'No aircraft detected nearby.';
+                        return;
+                    }
+
+                    data.alerts.forEach(ac => {
+                        const div = document.createElement('div');
+                        div.className = 'alert ' + (ac.status === 'alert' ? 'alert-status' : 'normal');
+                        div.textContent = `${ac.call}: ${ac.distance_km} km, ${ac.altitude_ft} ft, Status: ${ac.status}`;
+                        alertsDiv.appendChild(div);
+                    });
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('alerts').textContent = 'Error fetching aircraft data.';
+                });
+            }, error => {
+                alert("Unable to retrieve your location. Make sure location services are enabled.");
+                console.error(error);
+            });
+        });
+    </script>
 </body>
 </html>
