@@ -63,8 +63,8 @@ def check_aircraft():
             continue
 
         distance = haversine(operator_lat, operator_lon, ac_lat, ac_lon)
-        # Alert only if BOTH distance and altitude are within limits
-        status = "alert" if distance <= radius_km and ac_alt_ft <= altitude_limit_ft else "normal"
+        # Alert only if distance < 10km and altitude <= 3000ft
+        status = "alert" if distance < 10 and ac_alt_ft <= 3000 else "normal"
 
         alerts.append({
             "call": ac_call,
