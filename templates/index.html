@@ -2,9 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Drone Aircraft Alert</title>
+    <title>Drone Aircraft Tracker</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet/dist/leaflet.css"
+    />
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
+        body { font-family: Arial, sans-serif; padding: 10px; }
+        #map { height: 500px; width: 100%; margin-top: 10px; }
         input, button { padding: 5px; margin: 5px; }
         .alert { margin: 5px 0; padding: 8px; border-radius: 5px; }
         .normal { background-color: #d4edda; color: #155724; }
@@ -12,16 +17,70 @@
     </style>
 </head>
 <body>
-    <h1>Drone Aircraft Alert Checker</h1>
+    <h1>Drone Aircraft Tracker</h1>
 
     <label>Radius (km): <input type="number" id="radius" value="5"></label>
     <label>Altitude Limit (ft): <input type="number" id="alt_limit" value="5000"></label>
     <button id="checkBtn">Check Aircraft</button>
 
-    <h2>Results:</h2>
+    <h2>Aircraft Alerts</h2>
     <div id="alerts"></div>
 
+    <h2>Map</h2>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
+        let map, userMarker, aircraftMarkers = [];
+
+        function initMap(lat, lon) {
+            map = L.map('map').setView([lat, lon], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            userMarker = L.marker([lat, lon], {title: 'Your location'}).addTo(map);
+        }
+
+        function updateAircraftMarkers(alerts) {
+            // Remove previous markers
+            aircraftMarkers.forEach(m => map.removeLayer(m));
+            aircraftMarkers = [];
+
+            alerts.forEach(ac => {
+                const marker = L.marker([ac.lat, ac.lon], {
+                    title: `${ac.call} (${ac.altitude_ft} ft)`
+                }).addTo(map);
+
+                const popupContent = `
+                    <b>${ac.call}</b><br>
+                    Distance: ${ac.distance_km} km<br>
+                    Altitude: ${ac.altitude_ft} ft<br>
+                    Status: ${ac.status}
+                `;
+                marker.bindPopup(popupContent);
+
+                // Color code marker
+                if(ac.status === 'alert'){
+                    marker.setIcon(L.icon({
+                        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+                        iconSize: [32,32],
+                        iconAnchor: [16,32],
+                        popupAnchor: [0,-32]
+                    }));
+                } else {
+                    marker.setIcon(L.icon({
+                        iconUrl: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+                        iconSize: [32,32],
+                        iconAnchor: [16,32],
+                        popupAnchor: [0,-32]
+                    }));
+                }
+
+                aircraftMarkers.push(marker);
+            });
+        }
+
         document.getElementById('checkBtn').addEventListener('click', () => {
             if (!navigator.geolocation) {
                 alert("Geolocation is not supported by your browser.");
@@ -33,6 +92,10 @@
                 const lon = position.coords.longitude;
                 const radius = parseFloat(document.getElementById('radius').value);
                 const alt_limit = parseFloat(document.getElementById('alt_limit').value);
+
+                if(!map) initMap(lat, lon);
+                userMarker.setLatLng([lat, lon]);
+                map.setView([lat, lon], 12);
 
                 fetch('/check_aircraft', {
                     method: 'POST',
@@ -46,6 +109,7 @@
 
                     if (!data.alerts || data.alerts.length === 0) {
                         alertsDiv.textContent = 'No aircraft detected nearby.';
+                        updateAircraftMarkers([]);
                         return;
                     }
 
@@ -55,6 +119,8 @@
                         div.textContent = `${ac.call}: ${ac.distance_km} km, ${ac.altitude_ft} ft, Status: ${ac.status}`;
                         alertsDiv.appendChild(div);
                     });
+
+                    updateAircraftMarkers(data.alerts);
                 })
                 .catch(err => {
                     console.error(err);
