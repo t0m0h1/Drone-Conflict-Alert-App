@@ -20,7 +20,7 @@ def fetch_aircraft(lat, lon, radius_km=10):
         data = response.json()
         return data.get('aircraft', [])  # adjust based on actual JSON structure
     except Exception as e:
-        print(f"⚠️ ADSB.lol API error: {e}")
+        print(f" ADSB.lol API error: {e}")
         return []
 
 @app.route('/')
@@ -32,8 +32,8 @@ def check_aircraft():
     data = request.json
     operator_lat = data.get('lat')
     operator_lon = data.get('lon')
-    radius_km = data.get('radius', 200)
-    altitude_limit_ft = data.get('alt_limit', 2000)
+    radius_km = data.get('radius', 5)
+    altitude_limit_ft = data.get('alt_limit', 5000)
 
     aircraft_list = fetch_aircraft(operator_lat, operator_lon, radius_km)
     alerts = []
